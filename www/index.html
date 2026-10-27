@@ -195,6 +195,16 @@ main{
 </style>
 </head>
 <body>
+  <div id="error-log" style="display:none; position:fixed; top:0; left:0; right:0; background:#ff4444; color:#fff; padding:15px; z-index:999999; font-family:monospace; font-size:12px; direction:ltr; text-align:left; word-wrap:break-word;"></div>
+<script>
+  window.onerror = function(msg, url, line) {
+    var el = document.getElementById('error-log');
+    if(el) {
+      el.style.display = 'block';
+      el.innerHTML += 'ERROR: ' + msg + ' at line ' + line + '<br>';
+    }
+  };
+</script>
 
 <div id="toast"></div>
 
