@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#050A15">
+<title>Alili AI</title>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/localforage@1.10.0/dist/localforage.min.js"></script>
+<script src="capacitor-bridge.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;800;900&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;font-family:'Cairo',system-ui,sans-serif;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#050A15;
+  --grid:rgba(0, 210, 255, 0.05);
+  --txt:#fff;
+  --mut:#8fa3b8;
+  --brd:rgba(0, 210, 255, 0.15);
+  --glow:0 0 15px rgba(0, 210, 255, 0.2);
+  --amb:rgba(10, 20, 40, 0.6);
+}
+
+body{
+  background-color:var(--bg);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px),
+    radial-gradient(circle at 50% 30%, rgba(0, 210, 255, 0.15), transparent 50%),
+    radial-gradient(circle at 50% 70%, rgba(255, 0, 204, 0.1), transparent 50%);
+  background-size: 30px 30px, 30px 30px, 100% 100%, 100% 100%;
+  color:var(--txt);
+  height:100dvh;width:100vw;overflow:hidden;display:flex;flex-direction:column;
+}
+
+button{cursor:pointer;font-family:inherit;background:none;border:none;color:inherit;}
+
+/* ═══ الشريط العلوي ═══ */
+header{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  padding:12px 16px;padding-top:calc(12px + env(safe-area-inset-top));
+}
+.header-pill{
+  background:rgba(10, 20, 40, 0.6);backdrop-filter:blur(15px);
+  border:1px solid var(--brd);border-radius:30px;padding:6px 14px;
+  display:flex;justify-content:space-between;align-items:center;width:100%;
+  box-shadow:var(--glow);
+}
+.logo-area{display:flex;align-items:center;gap:8px;cursor:pointer;}
+.logo-area img{width:24px;height:24px;border-radius:50%;object-fit:cover;background:#333;}
+.logo-text{font-size:13px;font-weight:800;line-height:1.1;}
+.prime-btn{
+  border:1px solid var(--brd);padding:3px 10px;border-radius:15px;
+  font-size:10px;font-weight:700;color:#00d2ff;display:flex;align-items:center;gap:4px;
+}
+.header-icons{display:flex;gap:10px;color:var(--mut);}
+.header-icons svg{width:18px;height:18px;}
+
+/* ═══ المحتوى الرئيسي ═══ */
+main{
+  flex:1;overflow-y:auto;padding:80px 16px 150px;
+  display:flex;flex-direction:column;position:relative;scroll-behavior:smooth;
+}
+
+/* شاشة الترحيب (الشعار الكبير) */
+#welcomeScreen{
+  position:absolute;top:45%;left:50%;transform:translate(-50%,-50%);
+  display:flex;flex-direction:column;align-items:center;
+  pointer-events:none;transition:opacity .5s, transform .5s;
+}
+#welcomeScreen.hide{opacity:0;transform:translate(-50%,-60%);}
+.hero-logo{
+  width:160px;height:160px;object-fit:contain;
+  filter:drop-shadow(0 0 20px rgba(0, 210, 255, 0.5));
+  animation:float 4s ease-in-out infinite;background:#222; border-radius:50%;
+}
+.hero-title{
+  font-size:32px;font-weight:900;margin-top:8px;
+  background:linear-gradient(90deg, #00d2ff, #ff00cc);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+
+#chatBox{display:flex;flex-direction:column;gap:16px;padding-bottom:10px;}
+
+/* ═══ الرسائل ═══ */
+.message{max-width:90%;padding:12px 16px;border-radius:16px;font-size:14px;line-height:1.6;animation:su .3s;position:relative;}
+.msg-user{align-self:flex-end;background:linear-gradient(135deg, #00d2ff, #0055ff);color:#fff;border-bottom-right-radius:4px;box-shadow:0 4px 15px rgba(0,210,255,0.3);}
+.msg-ai{align-self:flex-start;background:var(--amb);border:1px solid var(--brd);border-bottom-left-radius:4px;width:100%;backdrop-filter:blur(10px);box-shadow:0 4px 15px rgba(0,0,0,0.2);}
+@keyframes su{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+.md{font-size:14px;line-height:1.7;word-wrap:break-word}
+.md p{margin-bottom:8px}.md strong{color:#00d2ff;font-weight:800}
+.md code{background:rgba(0,0,0,.6);color:#00ff87;padding:2px 4px;border-radius:4px;font-family:monospace;font-size:12px;direction:ltr;display:inline-block}
+.md pre{background:#000;padding:10px;border-radius:10px;overflow-x:auto;direction:ltr;text-align:left;margin-bottom:10px;border:1px solid var(--brd)}
+.md pre code{background:transparent;color:#e2e8f0;padding:0;display:block;border:none}
+
+.msg-media{max-width:100%;border-radius:10px;margin-top:10px;display:block}
+.msg-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:6px;margin-top:10px}
+.msg-grid img{width:100%;height:100px;object-fit:cover;border-radius:8px;cursor:pointer}
+
+.ai-actions{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap;border-top:1px solid rgba(255,255,255,.1);padding-top:10px}
+.ab{background:rgba(255,255,255,.05);color:var(--mut);border:1px solid var(--brd);padding:5px 10px;border-radius:8px;font-size:11px;font-weight:600;display:flex;align-items:center;gap:4px}
+.ab:hover{background:rgba(0,210,255,.1);color:#00d2ff}
+
+/* ═══ الأزرار العائمة (بحث + تفكير) ═══ */
+#floatingToggles{
+  position:fixed;bottom:80px;right:16px;z-index:90;
+  display:flex;flex-direction:column;gap:6px;align-items:flex-end;
+}
+.float-btn{
+  background:rgba(10, 20, 40, 0.7);backdrop-filter:blur(10px);
+  border:1px solid var(--brd);border-radius:12px;
+  padding:5px 10px; font-size:10px; font-weight:700;
+  display:flex;align-items:center;gap:6px;
+  transition:.3s;box-shadow:0 2px 8px rgba(0,0,0,0.2);color:var(--mut);
+}
+.float-btn .dot{width:6px;height:6px;border-radius:50%;background:#444;transition:.3s;}
+.float-btn.active{border-color:#00ff87;color:#00ff87;box-shadow:0 0 10px rgba(0,255,135,0.2);}
+.float-btn.active .dot{background:#00ff87;box-shadow:0 0 6px #00ff87;}
+.float-btn.search.active{border-color:#00d2ff;color:#00d2ff;box-shadow:0 0 10px rgba(0,210,255,0.2);}
+.float-btn.search.active .dot{background:#00d2ff;box-shadow:0 0 6px #00d2ff;}
+
+/* ═══ صندوق الإدخال ═══ */
+.input-container{
+  position:fixed;bottom:0;left:0;right:0;z-index:100;
+  padding:10px 16px;padding-bottom:calc(16px + env(safe-area-inset-bottom));
+  background:linear-gradient(to top, var(--bg) 60%, transparent);
+}
+.chat-input-area{
+  display:flex;gap:6px;align-items:center;
+  background:rgba(10, 20, 40, 0.7);backdrop-filter:blur(20px);
+  padding:4px 10px;border-radius:24px;border:1px solid var(--brd);
+  box-shadow:0 0 15px rgba(0, 210, 255, 0.1), inset 0 0 8px rgba(0, 210, 255, 0.03);
+}
+.chat-input-area input[type="text"]{
+  border:none;background:transparent;padding:6px 4px;color:#fff;font-size:13px;outline:none;flex:1;min-width:0;text-align:center;
+}
+.chat-input-area input[type="text"]::placeholder{color:var(--mut);}
+.chat-input-area label,.chat-input-area button.icon-btn{
+  color:var(--mut);display:flex;align-items:center;justify-content:center;padding:6px;transition:.2s;
+}
+.chat-input-area label:hover,.chat-input-area button.icon-btn:hover{color:#00d2ff;}
+.chat-input-area svg{width:18px;height:18px;}
+
+.send-btn{
+  width:34px;height:34px;border-radius:50%;
+  background:linear-gradient(135deg, #00d2ff, #0055ff);
+  display:flex;justify-content:center;align-items:center;
+  color:#fff;flex-shrink:0;box-shadow:0 0 10px rgba(0,210,255,0.4);transition:.2s;
+}
+.send-btn svg{width:16px;height:16px;transform:rotate(180deg);}
+.send-btn:active{transform:scale(.9);}
+
+/* ═══ القائمة الجانبية ═══ */
+#sbO{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:500;backdrop-filter:blur(4px)}
+#sb{position:fixed;top:0;right:-280px;width:260px;height:100dvh;background:#050A15;z-index:600;transition:right .3s;display:flex;flex-direction:column;border-left:1px solid var(--brd);padding-top:env(safe-area-inset-top); box-shadow:-5px 0 20px rgba(0,0,0,0.5);}
+#sb.open{right:0}
+.sb-h{padding:16px;border-bottom:1px solid var(--brd);display:flex;justify-content:space-between;align-items:center}
+.new-chat-btn{background:linear-gradient(135deg,#00d2ff,#00ff87);color:#000;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:800;}
+#chatHistory{flex:1;overflow-y:auto;padding:10px;display:flex;flex-direction:column;gap:6px}
+.hist{background:rgba(255,255,255,.03);padding:10px 12px;border-radius:8px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;border:1px solid transparent;color:var(--mut);}
+.hist.active{border-color:#00d2ff;background:rgba(0,210,255,.1);color:#fff;}
+.ht{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:150px}
+.db{color:#ef4444;font-size:14px;}
+
+/* ═══ النوافذ المنبثقة (Modals) ═══ */
+.modal{display:none;position:fixed;inset:0;background:#050A15;z-index:1000;flex-direction:column;padding:16px;overflow-y:auto;padding-top:calc(16px + env(safe-area-inset-top))}
+.modal-h{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.close-m{background:rgba(255,255,255,.1);color:#fff;border:none;width:32px;height:32px;border-radius:50%;font-size:14px;}
+.card{background:rgba(10, 20, 40, 0.8);padding:16px;border-radius:12px;margin-bottom:12px;border:1px solid var(--brd)}
+.card h3{font-size:13px;font-weight:700;margin-bottom:10px;color:#00d2ff;}
+.card input,.card textarea,.card select{width:100%;padding:12px;border-radius:8px;background:rgba(0,0,0,0.5);border:1px solid var(--brd);color:#fff;font-size:13px;outline:none;margin-bottom:8px;}
+.card textarea{min-height:80px;resize:vertical}
+.help{font-size:10px;color:var(--mut);margin-top:4px;}
+.kw{display:flex;gap:8px;margin-bottom:6px}.kw input{margin-bottom:0}
+.tb{background:#00d2ff;color:#000;border:none;border-radius:8px;padding:0 12px;font-size:11px;font-weight:bold;}
+.save-btn{width:100%;padding:14px;border-radius:10px;background:linear-gradient(135deg, #00d2ff, #0055ff);color:#fff;border:none;font-weight:bold;font-size:14px;margin-bottom:20px;box-shadow:0 4px 15px rgba(0,210,255,0.3);}
+
+/* ═══ عناصر مساعدة ═══ */
+#toast{position:fixed;bottom:100px;left:50%;transform:translateX(-50%) translateY(20px);background:rgba(0,0,0,.9);color:#fff;padding:10px 20px;border-radius:10px;font-size:13px;z-index:10000;opacity:0;transition:.3s;pointer-events:none;border:1px solid var(--brd);}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast.success{border-color:#00ff87;color:#00ff87}
+#toast.error{border-color:#ff4444;color:#ff4444}
+
+.typing-indicator{display:inline-flex;align-items:center;gap:4px;height:18px}
+.typing-indicator span{display:inline-block;width:6px;height:6px;background-color:#00d2ff;border-radius:50%;animation:bounce 1.4s infinite ease-in-out both}
+.typing-indicator span:nth-child(1){animation-delay:-.32s}
+.typing-indicator span:nth-child(2){animation-delay:-.16s}
+@keyframes bounce{0%,80%,100%{transform:scale(0);opacity:.3}40%{transform:scale(1);opacity:1}}
+
+#appPreviewModal{background:#050A15;}
+#appPreviewFrame{width:100%;height:calc(100dvh - 180px);border:1px solid var(--brd);border-radius:12px;background:#fff;}
+</style>
+</head>
+<body>
+
+<div id="toast"></div>
+
+<header>
+  <div class="header-pill">
+    <div class="logo-area" onclick="toggleSidebar(true)">
+      <img src="logo.png" alt="Alili Logo" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 100 100\'><circle cx=\'50\' cy=\'50\' r=\'40\' fill=\'none\' stroke=\'%2300d2ff\' stroke-width=\'4\'/><path d=\'M30 70 L50 30 L70 70\' stroke=\'%2300d2ff\' stroke-width=\'4\' fill=\'none\'/></svg>'">
+      <div class="logo-text">Alili<br>AI</div>
+    </div>
+    <div class="prime-btn">
+      Alili Prime <svg style="width:10px;height:10px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+    </div>
+    <div class="header-icons">
+      <svg onclick="createNewChat()" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      <svg onclick="document.getElementById('settingsModal').style.display='flex'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      <svg onclick="document.getElementById('fileLibraryModal').style.display='flex'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+    </div>
+  </div>
+</header>
+
+<main id="mainContent">
+  <div id="welcomeScreen">
+    <img src="logo.png" class="hero-logo" alt="Alili Logo" onerror="this.style.display='none'">
+    <div class="hero-title">Alili AI</div>
+  </div>
+  <div id="chatBox"></div>
+</main>
+
+<div id="floatingToggles">
+  <button class="float-btn search" id="btnToggleSearch" onclick="toggleFeature('search')">
+    <span>🌐 بحث</span> <div class="dot"></div>
+  </button>
+  <button class="float-btn" id="btnToggleThink" onclick="toggleFeature('think')">
+    <span>🧠 تفكير</span> <div class="dot"></div>
+  </button>
+</div>
+
+<div class="input-container">
+  <div class="chat-input-area">
+    <label for="chatFile">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+    </label>
+    <input type="file" id="chatFile" accept=".txt,.md,.js,.py,.json,.html,.pdf,image/*" multiple onchange="handleAttachment(this)" style="display:none">
+    
+    <button class="icon-btn" onclick="startVoice()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></button>
+    
+    <input type="text" id="chatInput" placeholder="اسأل أي شيء..." onkeypress="handleEnter(event)" enterkeyhint="send">
+    
+    <button id="btnStop" onclick="stopGeneration()" style="display:none; color:#ff4444; font-size:18px;">⏹</button>
+    <button class="send-btn" id="btnSend" onclick="sendMessage()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+    </button>
+  </div>
+</div>
+
+<div id="sbO" onclick="toggleSidebar(false)"></div>
+<div id="sb">
+  <div class="sb-h"><h2 style="font-size:14px;font-weight:800;">المحادثات</h2><button class="new-chat-btn" onclick="createNewChat()">+ جديد</button></div>
+  <div id="chatHistory"></div>
+</div>
+
+<div id="settingsModal" class="modal">
+  <div class="modal-h"><h2 style="font-size:16px;color:var(--txt)">⚙️ الإعدادات</h2><button class="close-m" onclick="document.getElementById('settingsModal').style.display='none'">✖</button></div>
+
+  <div class="card"><h3>🔑 Google AI Studio (إجباري)</h3>
+    <div class="kw"><input id="googleKey" type="password" placeholder="AIzaSy..."><button class="tb" onclick="testKey('google')">فحص</button></div>
+    <p class="help">احصل عليه مجانًا من aistudio.google.com/apikey</p>
+  </div>
+
+  <div class="card"><h3>🧠 النموذج</h3>
+    <select id="modelSelect">
+      <option value="auto">🔄 تبديل تلقائي (موصى به)</option>
+      <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+      <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+      <option value="deepseek-r1">DeepSeek R1 (عبر OpenRouter)</option>
+      <option value="groq/llama-3.3-70b-versatile">Groq Llama 3.3</option>
+      <option value="cerebras/llama-3.3-70b">Cerebras Llama 3.3</option>
+    </select>
+  </div>
+
+  <div class="card"><h3>⚡ Groq / Cerebras / OpenRouter</h3>
+    <div class="kw"><input id="groqKey" type="password" placeholder="Groq gsk_..."><button class="tb" onclick="testKey('groq')">فحص</button></div>
+    <div class="kw"><input id="cerebrasKey" type="password" placeholder="Cerebras csk-..."><button class="tb" onclick="testKey('cerebras')">فحص</button></div>
+    <div class="kw"><input id="orKey" type="password" placeholder="OpenRouter sk-or-..."><button class="tb" onclick="testKey('openrouter')">فحص</button></div>
+    <p class="help">مطلوب لتفعيل DeepSeek R1</p>
+  </div>
+
+  <div class="card"><h3>🌐 Tavily (بحث ويب)</h3><div class="kw"><input id="tavilyKey" type="password" placeholder="tvly-..."><button class="tb" onclick="testKey('tavily')">فحص</button></div></div>
+  
+  <div class="card"><h3>🎨 Cloudflare / HuggingFace (صور)</h3>
+    <div class="kw"><input id="cfAccountId" placeholder="CF Account ID"><input id="cfApiKey" type="password" placeholder="CF Token"></div>
+    <div class="kw"><input id="hfKey" type="password" placeholder="HF hf_..."><button class="tb" onclick="testKey('huggingface')">فحص</button></div>
+  </div>
+
+  <div class="card"><h3>🎬 Magic Hour / HeyGen (فيديو وصوت)</h3>
+    <div class="kw"><input id="magicHourKey" type="password" placeholder="MH mh_..."><button class="tb" onclick="testKey('magichour')">فحص</button></div>
+    <div class="kw"><input id="heygenKey" type="password" placeholder="HG hg_..."><button class="tb" onclick="testKey('heygen')">فحص</button></div>
+  </div>
+
+  <div class="card"><h3>🎭 الشخصية</h3>
+    <textarea id="personaInput" placeholder="أنت مساعد ذكي..."></textarea>
+  </div>
+
+  <div class="card"><h3>🧠 الذاكرة طويلة المدى</h3>
+    <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;"><input type="checkbox" id="memoryEnabled" style="width:auto;margin:0"> استخراج الحقائق تلقائيًا</label>
+  </div>
+
+  <div class="card" style="border-color:#00d2ff"><h3>💾 النسخ الاحتياطي</h3>
+    <div style="display:flex;gap:10px">
+      <button onclick="exportFullBackup()" style="flex:1;padding:10px;border-radius:8px;background:var(--sbb);color:#000;font-weight:bold;font-size:12px">📤 تصدير</button>
+      <button onclick="document.getElementById('importFile').click()" style="flex:1;padding:10px;border-radius:8px;background:rgba(255,255,255,.1);color:#fff;border:1px solid var(--brd);font-weight:bold;font-size:12px">📥 استيراد</button>
+    </div>
+    <input type="file" id="importFile" accept=".json" style="display:none" onchange="importFullBackup(this)">
+  </div>
+
+  <button onclick="saveAllKeys()" class="save-btn">💾 حفظ الإعدادات</button>
+</div>
+
+<div id="fileLibraryModal" class="modal">
+  <div class="modal-h"><h2 style="font-size:16px;">📁 المكتبة</h2><button class="close-m" onclick="document.getElementById('fileLibraryModal').style.display='none'">✖</button></div>
+  <input type="file" id="libraryFile" accept=".txt,.md,.js,.py,.json,.pdf" onchange="addFileToLibrary(this)" style="display:none">
+  <button onclick="document.getElementById('libraryFile').click()" class="save-btn" style="background:var(--sbb);color:#000;">+ إضافة ملف</button>
+  <div id="fileLibraryList"></div>
+</div>
+
+<div id="appPreviewModal" class="modal">
+  <div class="modal-h"><h2 id="appPreviewTitle" style="font-size:16px;">📱 معاينة</h2><button class="close-m" onclick="document.getElementById('appPreviewModal').style.display='none'">✖</button></div>
+  <div style="display:flex;gap:8px;margin-bottom:12px">
+    <button id="appDownloadBtn" class="ab" style="flex:1;justify-content:center">⬇️ تحميل HTML</button>
+    <button id="appOpenBtn" class="ab" style="flex:1;justify-content:center">🌐 فتح</button>
+  </div>
+  <iframe id="appPreviewFrame" sandbox="allow-scripts allow-same-origin allow-forms allow-modals"></iframe>
+</div>
+
+<script>
+marked.setOptions({ breaks: true, gfm: true });
+if (typeof pdfjsLib !== 'undefined') pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+const store = localforage.createInstance({ name: 'AliliAI' });
+
+const PERSONA_PRESETS = { default:"أنت Alili AI، مساعد ذكي شبابي ومرح. استخدم الإيموجي وMarkdown." };
+let isThinking = false, isSearching = false;
+let attachedImages = [], attachedVideoBase64 = null, attachedFileText = null;
+
+function getKey(name) { return localStorage.getItem(name); }
+function showToast(msg, type = '') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = 'show ' + type;
+  setTimeout(() => t.className = '', 3000);
+}
+
+function toggleFeature(f) {
+  if (f === 'think') {
+    isThinking = !isThinking;
+    document.getElementById('btnToggleThink').classList.toggle('active', isThinking);
+  } else if (f === 'search') {
+    isSearching = !isSearching;
+    document.getElementById('btnToggleSearch').classList.toggle('active', isSearching);
+  }
+}
+
+document.getElementById('memoryEnabled').checked = getKey('memory_enabled') === '1';
+if (getKey('selected_model')) document.getElementById('modelSelect').value = getKey('selected_model');
+if (getKey('google_key')) document.getElementById('googleKey').value = getKey('google_key');
+if (getKey('tavily_key')) document.getElementById('tavilyKey').value = getKey('tavily_key');
+if (getKey('groq_key')) document.getElementById('groqKey').value = getKey('groq_key');
+if (getKey('cerebras_key')) document.getElementById('cerebrasKey').value = getKey('cerebras_key');
+if (getKey('or_key')) document.getElementById('orKey').value = getKey('or_key');
+if (getKey('hf_key')) document.getElementById('hfKey').value = getKey('hf_key');
+if (getKey('magic_hour_key')) document.getElementById('magicHourKey').value = getKey('magic_hour_key');
+if (getKey('heygen_key')) document.getElementById('heygenKey').value = getKey('heygen_key');
+if (getKey('ai_persona_custom')) document.getElementById('personaInput').value = getKey('ai_persona_custom');
+
+function saveAllKeys() {
+  const u = { google_key:'googleKey', magic_hour_key:'magicHourKey', groq_key:'groqKey', cerebras_key:'cerebrasKey', or_key:'orKey', tavily_key:'tavilyKey', cf_account_id:'cfAccountId', cf_api_key:'cfApiKey', heygen_key:'heygenKey', hf_key:'hfKey', selected_model:'modelSelect', ai_persona_custom:'personaInput' };
+  Object.entries(u).forEach(([k, id]) => { const el = document.getElementById(id); if (el) localStorage.setItem(k, el.value.trim()); });
+  localStorage.setItem('memory_enabled', document.getElementById('memoryEnabled').checked ? '1' : '0');
+  showToast('✅ تم الحفظ', 'success');
+  document.getElementById('settingsModal').style.display = 'none';
+}
+
+function toggleSidebar(open) {
+  document.getElementById('sb').classList.toggle('open', open);
+  document.getElementById('sbO').style.display = open ? 'block' : 'none';
+}
+
+let allChats = {}, currentChatId = null;
+
+async function loadChatsFromDB() {
+  const s = await store.getItem('chats');
+  if (s) allChats = s;
+  if (Object.keys(allChats).length === 0) createNewChat();
+  else {
+    const l = Object.keys(allChats).sort((a,b) => allChats[b].timestamp - allChats[a].timestamp)[0];
+    currentChatId = l; loadChatHistoryUI(); renderCurrentChat();
+  }
+}
+async function saveChatsToDB() { try { await store.setItem('chats', allChats); } catch(e) {} }
+
+function loadChatHistoryUI() {
+  const l = document.getElementById('chatHistory'); l.innerHTML = '';
+  const ids = Object.keys(allChats).sort((a,b) => allChats[b].timestamp - allChats[a].timestamp);
+  if (ids.length === 0) { l.innerHTML = '<div style="padding:20px;text-align:center;color:gray;font-size:12px">لا محادثات</div>'; return; }
+  ids.forEach(id => {
+    const c = allChats[id], d = document.createElement('div');
+    d.className = 'hist' + (id === currentChatId ? ' active' : '');
+    d.innerHTML = `<span class="ht">${c.title}</span><button class="db" onclick="deleteChat(event,'${id}')">🗑️</button>`;
+    d.onclick = e => { if (e.target.tagName !== 'BUTTON') switchChat(id); };
+    l.appendChild(d);
+  });
+}
+
+function createNewChat() {
+  currentChatId = Date.now().toString();
+  allChats[currentChatId] = { id: currentChatId, title: 'محادثة جديدة', timestamp: Date.now(), messages: [{ role: 'system', content: getKey('ai_persona_custom') || PERSONA_PRESETS.default }] };
+  saveChatsToDB(); loadChatHistoryUI();
+  document.getElementById('chatBox').innerHTML = '';
+  document.getElementById('welcomeScreen').classList.remove('hide');
+  toggleSidebar(false);
+}
+
+function switchChat(id) {
+  currentChatId = id;
+  loadChatHistoryUI(); renderCurrentChat(); toggleSidebar(false);
+}
+
+function deleteChat(e, id) {
+  e.stopPropagation();
+  if (confirm('حذف المحادثة؟')) {
+    delete allChats[id]; saveChatsToDB();
+    if (currentChatId === id) createNewChat(); else loadChatHistoryUI();
+  }
+}
+
+function renderCurrentChat() {
+  const box = document.getElementById('chatBox'); box.innerHTML = '';
+  const msgs = allChats[currentChatId].messages;
+  
+  if (msgs.length > 1) {
+    document.getElementById('welcomeScreen').classList.add('hide');
+  } else {
+    document.getElementById('welcomeScreen').classList.remove('hide');
+  }
+
+  for (let i = 1; i < msgs.length; i++) {
+    addMessageToUI(msgs[i].content, msgs[i].role, msgs[i].image, msgs[i].video, msgs[i].images, msgs[i].meta);
+  }
+  scrollToBottom();
+}
+
+function addMessageToUI(text, role, imgB64 = null, videoUrl = null, imgArr = null, meta = null) {
+  document.getElementById('welcomeScreen').classList.add('hide');
+  
+  const box = document.getElementById('chatBox'), div = document.createElement('div');
+  div.className = 'message ' + (role === 'user' ? 'msg-user' : 'msg-ai');
+  
+  if (imgArr && imgArr.length > 0) {
+    const g = document.createElement('div'); g.className = 'msg-grid';
+    imgArr.forEach(b => { const im = document.createElement('img'); im.src = b; im.onclick = () => window.open(b); g.appendChild(im); });
+    div.appendChild(g);
+  } else if (imgB64) {
+    const w = document.createElement('div');
+    const im = document.createElement('img'); im.src = imgB64; im.className = 'msg-media';
+    w.appendChild(im);
+    w.appendChild(document.createElement('br'));
+    const dl = document.createElement('button'); dl.className = 'ab'; dl.innerHTML = '⬇️ حفظ'; dl.onclick = () => forceDownload(imgB64);
+    w.appendChild(dl); div.appendChild(w);
+  }
+  
+  if (videoUrl) {
+    const w = document.createElement('div');
+    const v = document.createElement('video'); v.src = videoUrl; v.className = 'msg-media'; v.controls = true;
+    w.appendChild(v);
+    w.appendChild(document.createElement('br'));
+    const dl = document.createElement('button'); dl.className = 'ab'; dl.innerHTML = '⬇️ حفظ'; dl.onclick = () => forceDownload(videoUrl);
+    w.appendChild(dl); div.appendChild(w);
+  }
+
+  const tn = document.createElement('div');
+  tn.className = role === 'ai' ? 'md' : '';
+  tn.innerHTML = role === 'ai' ? marked.parse(text || '') : (text || '');
+  div.appendChild(tn);
+
+  if (meta) {
+    const m = document.createElement('div'); m.className = 'meta';
+    m.style = "font-size:10px; color:var(--mut); margin-top:8px; border-top:1px solid rgba(255,255,255,0.1); padding-top:6px;";
+    if (meta.model) m.innerHTML += `<span>🧠 ${meta.model}</span> `;
+    if (meta.time) m.innerHTML += `<span>⏱️ ${meta.time}s</span>`;
+    div.appendChild(m);
+  }
+
+  box.appendChild(div);
+  scrollToBottom();
+  return { div, span: tn };
+}
+
+function scrollToBottom() {
+  const m = document.getElementById('mainContent');
+  m.scrollTop = m.scrollHeight;
+}
+
+function handleAttachment(input) {
+  if (!input.files || input.files.length === 0) return;
+  for (const file of Array.from(input.files).slice(0, 3)) {
+    if (file.type.startsWith('image/')) {
+      const r = new FileReader();
+      r.onload = e => { attachedImages.push(e.target.result); showToast('✅ صورة مرفقة'); };
+      r.readAsDataURL(file);
+    } else if (file.type === 'application/pdf') {
+      showToast('⏳ جاري قراءة PDF...');
+      pdfjsLib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise.then(async pdf => {
+        let text = '';
+        for (let i = 1; i <= Math.min(pdf.numPages, 5); i++) {
+          const p = await pdf.getPage(i); const c = await p.getTextContent();
+          text += c.items.map(it => it.str).join(' ') + '\n';
+        }
+        attachedFileText = text; showToast('✅ تم قراءة PDF');
+      });
+    } else {
+      const r = new FileReader();
+      r.onload = e => { attachedFileText = e.target.result; showToast('✅ ملف مرفق'); };
+      r.readAsText(file);
+    }
+  }
+  input.value = '';
+}
+
+async function generateImageFromPrompt(prompt) {
+  const cfId = getKey('cf_account_id'), cfKey = getKey('cf_api_key'), hfKey = getKey('hf_key');
+  if (cfId && cfKey) {
+    const r = await fetch(`https://api.cloudflare.com/client/v4/accounts/${cfId}/ai/run/@cf/stabilityai/stable-diffusion-xl-base-1.0`, { method:'POST', headers:{Authorization:'Bearer '+cfKey,'Content-Type':'application/json'}, body:JSON.stringify({prompt}) });
+    if (!r.ok) throw new Error('CF: ' + r.status);
+    return URL.createObjectURL(await r.blob());
+  } else if (hfKey) {
+    const r = await fetch('https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell', { method:'POST', headers:{Authorization:'Bearer '+hfKey,'Content-Type':'application/json'}, body:JSON.stringify({inputs:prompt}) });
+    if (!r.ok) throw new Error('HF: ' + r.status);
+    return URL.createObjectURL(await r.blob());
+  }
+  throw new Error('أدخل مفتاح Cloudflare أو HuggingFace في الإعدادات');
+}
+
+async function performWebSearch(q) {
+  const k = getKey('tavily_key');
+  if (!k) { showToast('أدخل مفتاح Tavily', 'error'); return ''; }
+  try {
+    const r = await fetch('https://api.tavily.com/search', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({api_key:k,query:q,max_results:3,include_answer:true}) });
+    if (!r.ok) return '';
+    const d = await r.json();
+    let c = `[بحث "${q}"]:\n`;
+    if (d.answer) c += `إجابة: ${d.answer}\n\n`;
+    if (d.results) d.results.forEach(x => c += `📄 ${x.title}\n${x.content?.substring(0,500) || ''}\n\n`);
+    return c;
+  } catch(e) { return ''; }
+}
+
+async function generateAppCode(name, type, desc) {
+  const g = getKey('google_key');
+  const p = `أنت خبير ويب. أنشئ تطبيق HTML/JS/CSS كامل، ملف واحد، بدون مكتبات.\n\nاسم: ${name}\nنوع: ${type}\nوصف: ${desc}\n\nالمتطلبات:\n- ملف HTML واحد مع style+script مضمّنين\n- تصميم عصري (gradients، ظلال، responsive)\n- offline\n- ألوان: #00d2ff، #0055ff، #050A15\n- عربي RTL\n\nأعد الكود فقط بين \`\`\`html و \`\`\``;
+  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${g}`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({contents:[{role:'user',parts:[{text:p}]}]}) });
+  const d = await r.json();
+  const code = d.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  const m = code.match(/```html\s*([\s\S]*?)```/) || code.match(/```\s*([\s\S]*?)```/);
+  return m ? m[1].trim() : code;
+}
+
+async function generateGameCode(name, type, desc) {
+  const g = getKey('google_key');
+  const p = `أنت خبير ألعاب ويب. أنشئ لعبة HTML5/JS/CSS كاملة، ملف واحد.\n\nاسم: ${name}\nنوع: ${type}\nوصف: ${desc}\n\nالمتطلبات:\n- HTML واحد + canvas إن لزم\n- شاشة بداية + لعب + نقاط + Game Over + إعادة\n- تحكم لمس + لوحة مفاتيح\n- ألوان: #00d2ff، #0055ff، #050A15\n- responsive\n\nأعد الكود فقط بين \`\`\`html و \`\`\``;
+  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${g}`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({contents:[{role:'user',parts:[{text:p}]}]}) });
+  const d = await r.json();
+  const code = d.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  const m = code.match(/```html\s*([\s\S]*?)```/) || code.match(/```\s*([\s\S]*?)```/);
+  return m ? m[1].trim() : code;
+}
+
+function showAppPreview(name, html, isGame = false) {
+  document.getElementById('appPreviewTitle').textContent = (isGame ? '🎮 ' : '📱 ') + name;
+  document.getElementById('appPreviewFrame').srcdoc = html;
+  document.getElementById('appPreviewModal').style.display = 'flex';
+  document.getElementById('appDownloadBtn').onclick = () => {
+    const b64 = 'data:text/html;base64,' + btoa(unescape(encodeURIComponent(html)));
+    window.AliliNative.saveFile(name.replace(/\s+/g, '_') + '.html', b64);
+  };
+  document.getElementById('appOpenBtn').onclick = () => {
+    const b = new Blob([html], { type: 'text/html' });
+    window.open(URL.createObjectURL(b), '_blank');
+  };
+}
+
+const ROUTER_TOOLS = [
+  { name:'search_web', description:'ابحث في الإنترنت', parameters:{ type:'object', properties:{ query:{ type:'string' } }, required:['query'] } },
+  { name:'generate_image', description:'أنشئ صورة من وصف', parameters:{ type:'object', properties:{ prompt:{ type:'string' } }, required:['prompt'] } },
+  { name:'build_app', description:'ابنِ تطبيق ويب صغير', parameters:{ type:'object', properties:{ app_name:{ type:'string' }, app_type:{ type:'string' }, description:{ type:'string' } }, required:['app_name','app_type','description'] } },
+  { name:'build_game', description:'ابنِ لعبة بسيطة', parameters:{ type:'object', properties:{ game_name:{ type:'string' }, game_type:{ type:'string' }, description:{ type:'string' } }, required:['game_name','game_type','description'] } }
+];
+
+async function executeTool(name, args, aiRefs) {
+  try {
+    switch(name) {
+      case 'search_web': { const c = await performWebSearch(args.query); return { result: c || 'لا نتائج' }; }
+      case 'generate_image': {
+        const url = await generateImageFromPrompt(args.prompt);
+        const w = document.createElement('div');
+        const im = document.createElement('img'); im.src = url; im.className = 'msg-media';
+        w.appendChild(im); aiRefs.div.appendChild(w);
+        return { result: '✅ تم توليد الصورة' };
+      }
+      case 'build_app': {
+        const html = await generateAppCode(args.app_name, args.app_type, args.description);
+        showAppPreview(args.app_name, html);
+        return { result: `✅ تم بناء "${args.app_name}".` };
+      }
+      case 'build_game': {
+        const html = await generateGameCode(args.game_name, args.game_type, args.description);
+        showAppPreview(args.game_name, html, true);
+        return { result: `✅ تم بناء لعبة "${args.game_name}".` };
+      }
+      default: return { result: 'أداة غير معروفة' };
+    }
+  } catch(e) { return { result: '❌ ' + e.message }; }
+}
+
+let currentAbortController = null;
+
+function stopGeneration() {
+  if (currentAbortController) { currentAbortController.abort(); currentAbortController = null; }
+  document.getElementById('btnStop').style.display = 'none';
+  document.getElementById('btnSend').style.display = 'flex';
+}
+
+async function sendMessage() {
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if (!text && attachedImages.length === 0 && !attachedFileText) return;
+
+  document.getElementById('welcomeScreen').classList.add('hide');
+  
+  const userMsg = { role:'user', content: text || 'ملف' };
+  if (attachedImages.length > 0) userMsg.image = attachedImages[0];
+  allChats[currentChatId].messages.push(userMsg);
+
+  if (allChats[currentChatId].title === 'محادثة جديدة' && text) {
+    allChats[currentChatId].title = text.substring(0, 20) + (text.length > 20 ? '...' : '');
+    loadChatHistoryUI();
+  }
+
+  addMessageToUI(text || 'ملف', 'user', attachedImages.length > 0 ? attachedImages[0] : null);
+
+  const curImages = [...attachedImages], curFile = attachedFileText;
+  attachedImages = []; attachedFileText = null;
+  input.value = '';
+
+  const aiRefs = addMessageToUI('', 'ai');
+  aiRefs.span.innerHTML = '<span class="typing-indicator"><span></span><span></span><span></span></span>';
+
+  const btnSend = document.getElementById('btnSend'), btnStop = document.getElementById('btnStop');
+  btnSend.style.display = 'none'; btnStop.style.display = 'flex';
+  currentAbortController = new AbortController();
+
+  try {
+    let sys = (getKey('ai_persona_custom') || PERSONA_PRESETS.default);
+    if (isThinking) sys += "\n\n[وضع التفكير العميق] فكر خطوة بخطوة، وحلل المشكلة بعمق قبل الإجابة.";
+    
+    const contents = [];
+    const recent = allChats[currentChatId].messages.slice(1).slice(-10);
+    recent.forEach(m => {
+      const parts = [];
+      if (m.image) parts.push({ inline_data:{ mime_type:'image/jpeg', data: m.image.split(',')[1] } });
+      if (m.content && m.content !== 'ملف') parts.push({ text: m.content });
+      if (parts.length) contents.push({ role: m.role === 'assistant' ? 'model' : 'user', parts });
+    });
+
+    if (curFile && contents.length) {
+      const lastP = contents[contents.length - 1].parts.find(p => p.text);
+      if (lastP) lastP.text = 'محتوى الملف:\n' + curFile.substring(0, 8000) + '\n\nسؤالي: ' + lastP.text;
+    }
+
+    if (isSearching && text) {
+      const searchCtx = await performWebSearch(text);
+      if (searchCtx && contents.length) {
+        const lastP = contents[contents.length - 1].parts.find(p => p.text);
+        if (lastP) lastP.text = searchCtx + '\n\n' + lastP.text;
+      }
+    }
+
+    const selectedModel = getKey('selected_model') || 'auto';
+    const gKey = getKey('google_key');
+    
+    let modelsToTry = [];
+    if (selectedModel === 'auto') {
+      if (gKey) modelsToTry.push('gemini-2.5-flash');
+      if (getKey('groq_key')) modelsToTry.push('groq/llama-3.3-70b-versatile');
+      if (getKey('cerebras_key')) modelsToTry.push('cerebras/llama-3.3-70b');
+    } else {
+      modelsToTry = [selectedModel];
+    }
+
+    if (modelsToTry.length === 0) throw new Error('أدخل مفتاح Google AI Studio من الإعدادات');
+
+    let routeData = null;
+    let usedModel = 'unknown';
+    let lastErr = null;
+
+    for (const model of modelsToTry) {
+      try {
+        if (model.startsWith('gemini') && gKey) {
+          usedModel = model;
+          const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${gKey}`, {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ system_instruction:{ parts:[{ text: sys }] }, contents, tools:[{ function_declarations: ROUTER_TOOLS }], tool_config:{ function_calling_config:{ mode:'AUTO' } } }),
+            signal: currentAbortController.signal
+          });
+          if (res.status === 429) { lastErr = new Error(`${model} 429`); continue; }
+          if (!res.ok) { lastErr = new Error(`${model} ${res.status}`); continue; }
+          routeData = await res.json();
+          break;
+
+        } else if (model === 'deepseek-r1') {
+          const orKey = getKey('or_key');
+          if (!orKey) { lastErr = new Error('أدخل مفتاح OpenRouter لاستخدام DeepSeek'); continue; }
+          usedModel = 'deepseek-r1';
+          const msgs = [{ role:'system', content: sys }];
+          contents.forEach(c => msgs.push({ role: c.role, content: c.parts.map(p => p.text || '').join(' ') }));
+          const res = await fetch('https://openrouter.ai/api/v1/chat/completions', { method:'POST', headers:{Authorization:'Bearer '+orKey,'Content-Type':'application/json'}, body: JSON.stringify({ model:'deepseek/deepseek-r1:free', messages: msgs }), signal: currentAbortController.signal });
+          if (!res.ok) { lastErr = new Error(`DeepSeek ${res.status}`); continue; }
+          const data = await res.json();
+          routeData = { candidates:[{ content:{ parts:[{ text: data.choices?.[0]?.message?.content || '' }] } }] };
+          break;
+
+        } else if (model.startsWith('groq/')) {
+          const gk = getKey('groq_key');
+          if (!gk) { lastErr = new Error('أدخل مفتاح Groq'); continue; }
+          usedModel = model;
+          const msgs = [{ role:'system', content: sys }];
+          contents.forEach(c => msgs.push({ role: c.role, content: c.parts.map(p => p.text || '').join(' ') }));
+          const res = await fetch('https://api.groq.com/openai/v1/chat/completions', { method:'POST', headers:{Authorization:'Bearer '+gk,'Content-Type':'application/json'}, body: JSON.stringify({ model: model.replace('groq/',''), messages: msgs }), signal: currentAbortController.signal });
+          if (!res.ok) { lastErr = new Error(`Groq ${res.status}`); continue; }
+          const data = await res.json();
+          routeData = { candidates:[{ content:{ parts:[{ text: data.choices?.[0]?.message?.content || '' }] } }] };
+          break;
+
+        } else if (model.startsWith('cerebras/')) {
+          const ck = getKey('cerebras_key');
+          if (!ck) { lastErr = new Error('أدخل مفتاح Cerebras'); continue; }
+          usedModel = model;
+          const msgs = [{ role:'system', content: sys }];
+          contents.forEach(c => msgs.push({ role: c.role, content: c.parts.map(p => p.text || '').join(' ') }));
+          const res = await fetch('https://api.cerebras.ai/v1/chat/completions', { method:'POST', headers:{Authorization:'Bearer '+ck,'Content-Type':'application/json'}, body: JSON.stringify({ model: model.replace('cerebras/',''), messages: msgs }), signal: currentAbortController.signal });
+          if (!res.ok) { lastErr = new Error(`Cerebras ${res.status}`); continue; }
+          const data = await res.json();
+          routeData = { candidates:[{ content:{ parts:[{ text: data.choices?.[0]?.message?.content || '' }] } }] };
+          break;
+        }
+      } catch(e) { 
+        if (e.name === 'AbortError') throw e; 
+        lastErr = e; 
+      }
+    }
+
+    if (!routeData) throw lastErr || new Error('فشلت جميع النماذج');
+
+    const parts = routeData.candidates?.[0]?.content?.parts || [];
+    const funcCall = parts.find(p => p.functionCall);
+
+    let aiFull = '';
+    if (funcCall && usedModel.startsWith('gemini')) {
+      const { name, args } = funcCall.functionCall;
+      aiRefs.span.innerHTML = `<div style="color:#00d2ff;font-weight:700">🛠️ أداة: <span style="color:#ff00cc">${name}</span>...</div>`;
+      const toolResult = await executeTool(name, args, aiRefs);
+      
+      const follow = [...contents, { role:'model', parts:[{ functionCall:{ name, args } }] }, { role:'user', parts:[{ functionResponse:{ name, response: toolResult } }] }];
+      aiRefs.span.innerHTML = '<span class="typing-indicator"><span></span><span></span><span></span></span>';
+
+      const finalRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${usedModel}:streamGenerateContent?alt=sse&key=${gKey}`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ system_instruction:{ parts:[{ text: sys }] }, contents: follow }),
+        signal: currentAbortController.signal
+      });
+
+      const reader = finalRes.body.getReader(), dec = new TextDecoder();
+      while (true) {
+        const { done, value } = await reader.read(); if (done) break;
+        for (const line of dec.decode(value, { stream:true }).split('\n')) {
+          if (line.startsWith('data: ')) {
+            try {
+              const d = JSON.parse(line.substring(6));
+              const t = d.candidates?.[0]?.content?.parts?.[0]?.text || '';
+              if (t) { aiFull += t; aiRefs.span.innerHTML = marked.parse(aiFull); scrollToBottom(); }
+            } catch(e) {}
+          }
+        }
+      }
+    } else {
+      aiFull = parts.find(p => p.text)?.text || '';
+      aiRefs.span.innerHTML = marked.parse(aiFull);
+    }
+
+    const meta = { model: usedModel, time: '1.5' };
+    allChats[currentChatId].messages.push({ role:'assistant', content: aiFull, meta });
+    saveChatsToDB();
+
+    const metaEl = document.createElement('div'); 
+    metaEl.className = 'meta';
+    metaEl.style = "font-size:10px; color:var(--mut); margin-top:8px; border-top:1px solid rgba(255,255,255,0.1); padding-top:6px;";
+    metaEl.innerHTML = `🧠 ${usedModel}`;
+    aiRefs.div.appendChild(metaEl);
+
+  } catch(e) {
+    if (e.name === 'AbortError') aiRefs.span.innerHTML += '<br><span style="color:#ffaa00">⏹ تم الإيقاف</span>';
+    else if (e.message.includes('429')) aiRefs.span.innerHTML = '⚠️ تجاوزت الحد. انتظر أو أضف مفتاح Groq.';
+    else if (e.message.includes('401') || e.message.includes('403')) aiRefs.span.innerHTML = '🔑 المفتاح غير صالح.';
+    else aiRefs.span.innerHTML = '❌ ' + e.message;
+  } finally {
+    btnSend.style.display = 'flex'; btnStop.style.display = 'none';
+    currentAbortController = null;
+  }
+}
+
+function handleEnter(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }
+function startVoice() { showToast('🎤 الميزة الصوتية تتطلب إذن الميكروفون'); }
+
+async function forceDownload(urlOrB64) {
+  const ok = await window.AliliNative.saveFile('Alili_' + Date.now() + '.jpg', urlOrB64);
+  showToast(ok ? '✅ تم الحفظ' : '⚠️ فشل', ok ? 'success' : 'error');
+}
+
+async function testKey(type) {
+  try {
+    if (type === 'google') {
+      const k = document.getElementById('googleKey').value.trim(); if (!k) return showToast('أدخل المفتاح', 'error');
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${k}`);
+      showToast(r.ok ? '✅ يعمل' : '❌ فشل', r.ok ? 'success' : 'error');
+    } else {
+      showToast('الفحص غير مدعوم لهذا المزود حالياً', '');
+    }
+  } catch(e) { showToast('⚠️ فشل الاتصال', 'error'); }
+}
+
+function exportFullBackup() {
+  const data = { chats: allChats, date: new Date().toISOString() };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `Alili_Backup.json`; a.click();
+}
+function importFullBackup(input) {
+  const f = input.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = async e => {
+    const data = JSON.parse(e.target.result);
+    if (data.chats) { allChats = { ...allChats, ...data.chats }; await saveChatsToDB(); loadChatHistoryUI(); }
+    showToast('✅ تم الاستيراد', 'success');
+  };
+  r.readAsText(f);
+}
+async function addFileToLibrary(input) { showToast('المكتبة قيد التطوير', ''); }
+
+window.onload = async function() {
+  if (window.AliliNative) { try { await window.AliliNative.init(); } catch(e) {} }
+  await loadChatsFromDB();
+  setTimeout(() => {
+    if(document.getElementById('welcomeScreen')) document.getElementById('welcomeScreen').classList.remove('hide');
+  }, 500);
+};
+</script>
+</body>
+  </html>
