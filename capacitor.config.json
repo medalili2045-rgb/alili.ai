@@ -1,0 +1,14 @@
+{
+  "appId": "com.alili.ai",
+  "appName": "Alili AI",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_icon",
+      "iconColor": "#00d2ff"
+    }
+  }
+}
