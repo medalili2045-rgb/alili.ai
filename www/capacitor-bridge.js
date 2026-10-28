@@ -17,10 +17,12 @@
         '@capacitor/filesystem@6/dist/plugin.js',
         '@capacitor/share@6/dist/plugin.js',
         '@capacitor/camera@6/dist/plugin.js',
+        '@capacitor/biometric@6/dist/plugin.js',
+        '@capacitor/haptics@6/dist/plugin.js',
         '@capawesome-team/capacitor-android-foreground-service@6/dist/plugin.js'
       ];
       await Promise.all(urls.map(async p => { try { await this.loadScript('https://unpkg.com/' + p); } catch(e) {} }));
-      await new Promise(r => setTimeout(r, 500));
+      await new Promise(r => setTimeout(r, 800));
       this.plugins = window.Capacitor.Plugins || {};
     },
     loadScript(url) {
@@ -44,6 +46,16 @@
     async requestPermissions() {
       const LN = this.plugins.LocalNotifications;
       if (LN && LN.requestPermissions) { try { await LN.requestPermissions(); } catch(e) {} }
+    },
+    async haptic(type = 'light') {
+      if (!isNative || !this.plugins.Haptics) return;
+      try {
+        if (type === 'light') await this.plugins.Haptics.impact({ style: 'Light' });
+        else if (type === 'medium') await this.plugins.Haptics.impact({ style: 'Medium' });
+        else if (type === 'heavy') await this.plugins.Haptics.impact({ style: 'Heavy' });
+        else if (type === 'success') await this.plugins.Haptics.notification({ type: 'Success' });
+        else if (type === 'error') await this.plugins.Haptics.notification({ type: 'Error' });
+      } catch(e) {}
     },
     async notify(title, body) {
       if (!isNative) { try { if (Notification.permission === 'granted') new Notification(title, { body }); } catch(e) {} return; }
