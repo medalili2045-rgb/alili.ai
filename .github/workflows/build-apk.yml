@@ -30,9 +30,8 @@ jobs:
       - name: Install npm dependencies
         run: npm install
 
-      # توليد الأيقونة وشاشة البداية بلون داكن
+      # هذه الخطوة هي التي تصنع الأيقونة وشاشة البداية
       - name: Generate Icons and Splash
-        continue-on-error: true
         run: npx capacitor-assets generate --android --iconBackgroundColor '#050A15' --splashBackgroundColor '#050A15'
 
       - name: Add Android platform
