@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#050A15">
-<title>Alili AI Ultimate v5.5</title>
+<title>Alili AI Ultimate v5.6</title>
 
 <!-- المكتبات الأساسية -->
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -413,8 +413,14 @@ let attachedImages = [], attachedFileText = null;
 
 function showToast(msg, type = '') { const t = document.getElementById('toast'); t.textContent = msg; t.className = 'show ' + type; setTimeout(() => t.className = '', 3000); }
 
+// إخفاء المفاتيح (تم إصلاح مشكلة الأسماء المتقاطعة)
 async function updateUIState(type, isConnected) {
-  const kwDiv = document.getElementById('kw-' + type); if (!kwDiv) return;
+  const idMap = { 'openrouter': 'or', 'huggingface': 'hf', 'cloudflare': 'cf', 'magichour': 'magic' };
+  const targetType = idMap[type] || type;
+  
+  const kwDiv = document.getElementById('kw-' + targetType); 
+  if (!kwDiv) return;
+  
   const inputs = kwDiv.querySelectorAll('input'); 
   const btn = kwDiv.querySelector('button');
   
@@ -423,8 +429,8 @@ async function updateUIState(type, isConnected) {
     if (btn) btn.style.display = 'none';
     if (!kwDiv.querySelector('.key-success')) {
       const badge = document.createElement('div'); badge.className = 'key-success';
-      let displayTxt = type === 'gmail' ? `✅ ${await getSecureKey('gmail_account')}` : `✅ مفتاح نشط ومحمي`;
-      badge.innerHTML = `<span>${displayTxt}</span> <button onclick="editKey('${type}')">تعديل</button>`;
+      let displayTxt = targetType === 'gmail' ? `✅ ${await getSecureKey('gmail_account')}` : `✅ مفتاح نشط ومحمي`;
+      badge.innerHTML = `<span>${displayTxt}</span> <button onclick="editKey('${targetType}')">تعديل</button>`;
       kwDiv.appendChild(badge);
     }
   } else {
@@ -456,6 +462,7 @@ async function saveAllKeys() {
   for (const [k, id] of Object.entries(u)) { const el = document.getElementById(id); if (el) await setSecureKey(k, el.value.trim()); }
   localStorage.setItem('selected_model', document.getElementById('modelSelect').value);
   showToast('✅ تم حفظ وتشفير المفاتيح', 'success'); haptic('success'); document.getElementById('settingsModal').style.display = 'none';
+  await checkSavedKeys();
 }
 
 function togglePrimeMenu(e) { if (e) e.stopPropagation(); document.getElementById('primeMenu').classList.toggle('show'); haptic('light'); }
@@ -824,4 +831,4 @@ window.onload = async function() {
 };
 </script>
 </body>
-</html>
+  </html>
