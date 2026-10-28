@@ -1,6 +1,6 @@
 {
   "name": "alili-ai",
-  "version": "5.0.0",
+  "version": "5.6.0",
   "description": "Alili AI Ultimate",
   "scripts": {
     "sync": "cap sync android",
