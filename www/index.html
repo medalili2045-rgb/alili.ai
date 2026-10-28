@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#050A15">
-<title>Alili AI Ultimate v6.5</title>
+<title>Alili AI Ultimate v6.7</title>
 
 <!-- المكتبات الأساسية -->
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -253,7 +253,23 @@ main{flex:1;overflow-y:auto;padding:80px 16px 150px;display:flex;flex-direction:
     </select>
   </div>
 
+  <div class="card"><h3>🔊 الصوت والاهتزاز</h3>
+    <label style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;font-size:13px;color:var(--txt);cursor:pointer;">
+      <span>📳 تفعيل الاهتزاز</span>
+      <input type="checkbox" id="toggleHaptics" style="width:auto;margin:0;">
+    </label>
+    <label style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;font-size:13px;color:var(--txt);cursor:pointer;">
+      <span>🔊 أصوات النقر</span>
+      <input type="checkbox" id="toggleSounds" style="width:auto;margin:0;">
+    </label>
+  </div>
+
   <div class="card"><h3>🔑 مفاتيح API (مشفرة)</h3>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+      <span style="font-size:11px;color:var(--mut);">المفاتيح المحفوظة مخفية للحماية.</span>
+      <button class="tb" onclick="clearAllKeys()" style="background:rgba(255,68,68,0.2); color:#ff4444; border-color:rgba(255,68,68,0.4);">🗑️ مسح الكل</button>
+    </div>
+    
     <div class="kw" id="kw-google">
       <input id="googleKey" type="password" placeholder="Google Key (إجباري)">
       <button class="tb" onclick="testKey('google')">فحص</button>
@@ -324,6 +340,40 @@ marked.setOptions({ breaks: true, gfm: true });
 if (typeof pdfjsLib !== 'undefined') pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
 const store = localforage.createInstance({ name: 'AliliAI' });
 
+// --- إعدادات الصوت والاهتزاز ---
+const hapticsEnabled = localStorage.getItem('haptics_enabled') !== 'false';
+const soundsEnabled = localStorage.getItem('sounds_enabled') !== 'false';
+
+function haptic(type = 'light') {
+  if (!hapticsEnabled) return;
+  if (window.AliliNative) window.AliliNative.haptic(type);
+}
+
+function playClickSound() {
+  if (!soundsEnabled) return;
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(600, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(300, ctx.currentTime + 0.05);
+    gain.gain.setValueAtTime(0.1, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.05);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.05);
+  } catch(e) {}
+}
+
+// ربط الأصوات بالأزرار
+document.addEventListener('click', (e) => {
+  if (e.target.closest('button') || e.target.closest('.icon-btn') || e.target.closest('.suggestion-chip') || e.target.closest('.float-btn')) {
+    playClickSound();
+  }
+});
+
 // --- التشفير ---
 async function encryptData(text) {
   if (!text) return '';
@@ -352,8 +402,6 @@ async function decryptData(ciphertext) {
 }
 async function setSecureKey(key, value) { const enc = await encryptData(value); localStorage.setItem(key, enc); }
 async function getSecureKey(key) { const val = localStorage.getItem(key); if(!val) return ''; return await decryptData(val); }
-
-function haptic(type = 'light') { if (window.AliliNative) window.AliliNative.haptic(type); }
 
 // --- شاشة البداية السينمائية ---
 let splashAnimationFrame;
@@ -419,24 +467,18 @@ async function updateUIState(type, isConnected) {
   const kwDiv = document.getElementById('kw-' + targetType); 
   if (!kwDiv) return;
   
-  const inputs = kwDiv.querySelectorAll('input'); 
-  const btn = kwDiv.querySelector('button');
-  
   if (isConnected) {
-    inputs.forEach(i => i.style.display = 'none'); 
-    if (btn) btn.style.display = 'none';
-    if (!kwDiv.querySelector('.key-success')) {
-      const badge = document.createElement('div'); badge.className = 'key-success';
-      let displayTxt = targetType === 'gmail' ? `✅ ${await getSecureKey('gmail_account')}` : `✅ مفتاح نشط ومحمي`;
-      badge.innerHTML = `<span>${displayTxt}</span> <button onclick="editKey('${targetType}')">تعديل</button>`;
-      kwDiv.appendChild(badge);
-    }
+    kwDiv.style.display = 'none'; // إخفاء الصندوق بالكامل
   } else {
+    kwDiv.style.display = 'flex'; // إظهاره للتعديل
+    const inputs = kwDiv.querySelectorAll('input'); 
+    const btn = kwDiv.querySelector('button');
     inputs.forEach(i => i.style.display = 'block'); 
     if (btn) btn.style.display = 'block';
     const badge = kwDiv.querySelector('.key-success'); if (badge) badge.remove();
   }
 }
+
 function editKey(type) { updateUIState(type, false); document.getElementById(type + 'Key')?.focus(); }
 
 async function checkSavedKeys() {
@@ -459,8 +501,22 @@ async function saveAllKeys() {
   const u = { google_key:'googleKey', groq_key:'groqKey', or_key:'orKey', tavily_key:'tavilyKey', hf_key:'hfKey', cf_account_id:'cfAccountId', cf_api_key:'cfApiKey', magic_hour_key:'magicHourKey', heygen_key:'heygenKey' };
   for (const [k, id] of Object.entries(u)) { const el = document.getElementById(id); if (el) await setSecureKey(k, el.value.trim()); }
   localStorage.setItem('selected_model', document.getElementById('modelSelect').value);
-  showToast('✅ تم حفظ وتشفير المفاتيح', 'success'); haptic('success'); document.getElementById('settingsModal').style.display = 'none';
+  localStorage.setItem('haptics_enabled', document.getElementById('toggleHaptics').checked ? 'true' : 'false');
+  localStorage.setItem('sounds_enabled', document.getElementById('toggleSounds').checked ? 'true' : 'false');
+  
+  showToast('✅ تم حفظ وتشفير الإعدادات', 'success'); haptic('success'); document.getElementById('settingsModal').style.display = 'none';
   await checkSavedKeys();
+}
+
+async function clearAllKeys() {
+  if (!confirm('⚠️ هل أنت متأكد من مسح جميع المفاتيح؟ ستحتاج لإدخالها مرة أخرى.')) return;
+  const keys = ['google','groq','or','tavily','hf','cf','magic','heygen'];
+  for (const k of keys) {
+    localStorage.removeItem(`key_${k}`);
+    localStorage.removeItem(`key_${k}_verified`);
+  }
+  showToast('🗑️ تم مسح المفاتيح بنجاح', 'success');
+  setTimeout(() => window.location.reload(), 1000);
 }
 
 function togglePrimeMenu(e) { if (e) e.stopPropagation(); document.getElementById('primeMenu').classList.toggle('show'); haptic('light'); }
@@ -739,7 +795,6 @@ function showAppPreview(name, html, isGame = false) {
 let currentAbortController = null;
 function stopGeneration() { if (currentAbortController) { currentAbortController.abort(); currentAbortController = null; } document.getElementById('btnStop').style.display = 'none'; document.getElementById('btnSend').style.display = 'flex'; haptic('medium'); }
 
-// منع الإرسال المتكرر السريع
 let lastMessageTime = 0;
 
 async function sendMessage() {
@@ -767,31 +822,29 @@ async function sendMessage() {
   try {
     const agent = localStorage.getItem('agent_mode') || 'general'; let sys = AGENT_PROMPTS[agent] || AGENT_PROMPTS.general; if (isThinking) sys += "\n\n[وضع التفكير العميق] فكر خطوة بخطوة.";
     
-    // ═══ 🛠️ إصلاح 1: تنظيف التاريخ ودمج الرسائل المتتالية ═══
-    let history = allChats[currentChatId].messages.slice(0, -1).slice(-10);
+    // ═══ 🛠️ الإصلاح: بناء المحتوى ليشمل الرسالة الحالية ═══
+    let recentMessages = allChats[currentChatId].messages.slice(-10);
     let contents = [];
-    
-    history.forEach(m => {
-      const role = m.role === 'assistant' ? 'model' : 'user';
-      const parts = [];
-      if (m.image) parts.push({ inline_data: { mime_type: 'image/jpeg', data: m.image.split(',')[1] } });
-      if (m.content) parts.push({ text: m.content });
-      
-      if (parts.length > 0) {
-        if (contents.length > 0 && contents[contents.length - 1].role === role) {
-          // إذا كان الدور متطابقاً، نقوم بدمج الرسالة الجديدة مع السابقة
-          contents[contents.length - 1].parts.push(...parts);
-        } else {
-          contents.push({ role: role, parts: parts });
+
+    recentMessages.forEach(m => {
+        const role = m.role === 'assistant' ? 'model' : 'user';
+        const parts = [];
+        if (m.image) parts.push({ inline_data: { mime_type: 'image/jpeg', data: m.image.split(',')[1] } });
+        if (m.content) parts.push({ text: m.content });
+
+        if (parts.length > 0) {
+            if (contents.length > 0 && contents[contents.length - 1].role === role) {
+                contents[contents.length - 1].parts.push(...parts);
+            } else {
+                contents.push({ role: role, parts: parts });
+            }
         }
-      }
     });
 
-    // التأكد من أن أول رسالة هي دائماً "user" (شرط جوجل)
     while (contents.length > 0 && contents[0].role !== 'user') {
-      contents.shift(); 
+        contents.shift();
     }
-    // ═══════════════════════════════════════════════
+    // ═══════════════════════════════════════════════════
 
     if (curFile) contents.push({ role: 'user', parts: [{ text: 'محتوى الملف:\n' + curFile.substring(0, 8000) }] });
     const ragCtx = await searchRAG(text); if (ragCtx && contents.length) { const lastP = contents[contents.length - 1].parts.find(p => p.text); if (lastP) lastP.text = ragCtx + '\n\n' + lastP.text; }
@@ -812,7 +865,6 @@ async function sendMessage() {
             
             const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(bodyPayload), signal: currentAbortController.signal });
             
-            // ═══ 🛠️ إصلاح 2: قراءة رسالة الخطأ الحقيقية من جوجل ═══
             if (res.status === 429) { lastErr = new Error('تجاوزت حد الطلبات (429)'); continue; } 
             if (!res.ok) { 
                 const errData = await res.json(); 
@@ -820,7 +872,6 @@ async function sendMessage() {
                 lastErr = new Error(`Gemini: ${errorMsg}`); 
                 continue; 
             }
-            // ═══════════════════════════════════════════════════
             
             routeData = await res.json(); success = true; break;
           } catch(e) { if (e.name === 'AbortError') throw e; lastErr = e; }
@@ -930,6 +981,10 @@ window.onload = async function() {
   
   document.getElementById('modelSelect').value = localStorage.getItem('selected_model') || 'auto';
   document.getElementById('agentSelect').value = localStorage.getItem('agent_mode') || 'general';
+  
+  // تحميل إعدادات الصوت والاهتزاز
+  document.getElementById('toggleHaptics').checked = localStorage.getItem('haptics_enabled') !== 'false';
+  document.getElementById('toggleSounds').checked = localStorage.getItem('sounds_enabled') !== 'false';
   
   const gmail = await getSecureKey('gmail_account'); if(gmail) document.getElementById('gmailAccount').value = gmail;
   const gkey = await getSecureKey('google_key'); if(gkey) document.getElementById('googleKey').value = gkey;
