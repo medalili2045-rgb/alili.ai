@@ -1,7 +1,7 @@
 {
   "name": "alili-ai",
-  "version": "2.0.0",
-  "description": "Alili AI Ultimate Edition",
+  "version": "5.0.0",
+  "description": "Alili AI Ultimate - Super App",
   "scripts": {
     "sync": "cap sync android",
     "open": "cap open android",
@@ -15,6 +15,8 @@
     "@capacitor/local-notifications": "^6.0.0",
     "@capacitor/share": "^6.0.0",
     "@capacitor/camera": "^6.0.0",
+    "@capacitor/biometric": "^6.0.0",
+    "@capacitor/haptics": "^6.0.0",
     "@capawesome-team/capacitor-android-foreground-service": "^6.0.0"
   },
   "devDependencies": {
