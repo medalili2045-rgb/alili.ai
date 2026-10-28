@@ -17,12 +17,11 @@
         '@capacitor/filesystem@6/dist/plugin.js',
         '@capacitor/share@6/dist/plugin.js',
         '@capacitor/camera@6/dist/plugin.js',
-        '@capacitor/biometric@6/dist/plugin.js',
         '@capacitor/haptics@6/dist/plugin.js',
         '@capawesome-team/capacitor-android-foreground-service@6/dist/plugin.js'
       ];
       await Promise.all(urls.map(async p => { try { await this.loadScript('https://unpkg.com/' + p); } catch(e) {} }));
-      await new Promise(r => setTimeout(r, 800));
+      await new Promise(r => setTimeout(r, 600));
       this.plugins = window.Capacitor.Plugins || {};
     },
     loadScript(url) {
