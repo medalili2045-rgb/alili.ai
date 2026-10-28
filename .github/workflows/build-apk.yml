@@ -30,13 +30,15 @@ jobs:
       - name: Install npm dependencies
         run: npm install
 
-      # هذه الخطوة هي التي تصنع الأيقونة وشاشة البداية
-      - name: Generate Icons and Splash
-        run: npx capacitor-assets generate --android --iconBackgroundColor '#050A15' --splashBackgroundColor '#050A15'
-
+      # 1. إنشاء مجلد أندرويد أولاً
       - name: Add Android platform
         run: npx cap add android
 
+      # 2. الآن نقوم بتوليد الأيقونة داخل مجلد أندرويد
+      - name: Generate Icons and Splash
+        run: npx capacitor-assets generate --android --iconBackgroundColor '#050A15' --splashBackgroundColor '#050A15'
+
+      # 3. مزامنة الملفات
       - name: Sync Capacitor
         run: npx cap sync android
 
