@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#050A15">
-<title>Alili AI Ultimate v5.1</title>
+<title>Alili AI Ultimate v5.0</title>
 
 <!-- المكتبات الأساسية -->
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
@@ -12,7 +12,7 @@
 <script src="https://cdn.jsdelivr.net/npm/localforage@1.10.0/dist/localforage.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
-<!-- مكتبات متقدمة (تمت إزالة Pyodide من هنا لتحميله عند الحاجة فقط) -->
+<!-- مكتبات متقدمة -->
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -28,12 +28,6 @@
 }
 body{background-color:var(--bg);background-image:linear-gradient(var(--grid) 1px, transparent 1px),linear-gradient(90deg, var(--grid) 1px, transparent 1px),radial-gradient(circle at 50% 30%, rgba(0, 210, 255, 0.15), transparent 50%),radial-gradient(circle at 50% 70%, rgba(255, 0, 204, 0.1), transparent 50%);background-size: 30px 30px, 30px 30px, 100% 100%, 100% 100%;color:var(--txt); height:100dvh;width:100vw;overflow:hidden;display:flex;flex-direction:column;}
 button{cursor:pointer;font-family:inherit;background:none;border:none;color:inherit;}
-
-/* القفل البيومتري */
-#lockScreen { position: fixed; inset: 0; background: #050A15; z-index: 9999999; display: none; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.5s; }
-#lockScreen.show { display: flex; }
-.lock-icon { font-size: 60px; margin-bottom: 20px; cursor: pointer; animation: pulseLock 2s infinite; }
-@keyframes pulseLock { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); text-shadow: 0 0 20px #00d2ff; } }
 
 /* شاشة البداية السينمائية */
 #cinematicSplash { position: fixed; inset: 0; background: #050A15; z-index: 999999; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.8s ease, visibility 0.8s; overflow: hidden; }
@@ -153,14 +147,9 @@ main{flex:1;overflow-y:auto;padding:80px 16px 150px;display:flex;flex-direction:
 </head>
 <body>
 
-<div id="lockScreen">
-  <div class="lock-icon" onclick="unlockApp()">🔐</div>
-  <div class="lock-text">المس البصمة لفتح التطبيق</div>
-</div>
-
 <div id="cinematicSplash">
   <canvas id="splashCanvas"></canvas>
-  <div id="splashText">ALILI ULTIMATE v5.1</div>
+  <div id="splashText">ALILI ULTIMATE v5.0</div>
   <button onclick="skipIntro()" id="skipBtn">تخطي ⏭️</button>
 </div>
 
@@ -367,21 +356,7 @@ async function getSecureKey(key) { const val = localStorage.getItem(key); if(!va
 
 function haptic(type = 'light') { if (window.AliliNative) window.AliliNative.haptic(type); }
 
-async function checkBiometricLock() {
-  if (localStorage.getItem('biometric_enabled') === 'true' && window.AliliNative && window.AliliNative.plugins && window.AliliNative.plugins.Biometric) {
-    document.getElementById('lockScreen').classList.add('show');
-    unlockApp();
-  }
-}
-async function unlockApp() {
-  if (window.AliliNative && window.AliliNative.plugins && window.AliliNative.plugins.Biometric) {
-    try {
-      const result = await window.AliliNative.plugins.Biometric.verifyIdentity({ reason: "التحقق مطلوب", title: "قفل Alili", subtitle: "استخدم بصمتك", cancelTitle: "إلغاء" });
-      if (result) { document.getElementById('lockScreen').classList.remove('show'); skipIntro(); }
-    } catch (e) { showToast('❌ لم يتم التحقق', 'error'); }
-  } else { document.getElementById('lockScreen').classList.remove('show'); }
-}
-
+// --- شاشة البداية ---
 let splashAnimationFrame;
 function playCinematicIntro() {
   const canvas = document.getElementById('splashCanvas'); if (!canvas) return;
@@ -438,7 +413,6 @@ let attachedImages = [], attachedFileText = null;
 
 function showToast(msg, type = '') { const t = document.getElementById('toast'); t.textContent = msg; t.className = 'show ' + type; setTimeout(() => t.className = '', 3000); }
 
-// الدالة المحدثة لإخفاء المفتاح
 async function updateUIState(type, isConnected) {
   const kwDiv = document.getElementById('kw-' + type); if (!kwDiv) return;
   const inputs = kwDiv.querySelectorAll('input'); 
@@ -645,7 +619,7 @@ async function generateFullProject(name, description) {
   } catch (e) { uiRefs.span.innerHTML = `❌ خطأ: ${e.message}`; }
 }
 
-// دالة بايثون (تحميل كسول)
+// دالة بايثون
 async function runPythonCode(code) {
   if (typeof loadPyodide === 'undefined') {
     showToast('⏳ جاري تحميل محرك بايثون...');
@@ -776,7 +750,6 @@ async function sendMessage() {
 
 function handleEnter(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }
 
-// دالة الفحص المحدثة لجميع المفاتيح
 async function testKey(type) {
   try {
     const kwDiv = document.getElementById('kw-' + type);
@@ -820,7 +793,6 @@ async function testKey(type) {
   }
 }
 
-// Service Worker Registration
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch(() => {});
@@ -829,7 +801,6 @@ if ('serviceWorker' in navigator) {
 
 window.onload = async function() {
   if (window.AliliNative) { try { await window.AliliNative.init(); } catch(e) {} }
-  checkBiometricLock();
   await checkSavedKeys();
   
   document.getElementById('modelSelect').value = localStorage.getItem('selected_model') || 'auto';
