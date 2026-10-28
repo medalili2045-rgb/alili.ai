@@ -9,11 +9,6 @@
     "LocalNotifications": {
       "smallIcon": "ic_stat_icon",
       "iconColor": "#00d2ff"
-    },
-    "SplashScreen": {
-      "launchShowDuration": 2000,
-      "backgroundColor": "#050A15",
-      "showSpinner": false
     }
   }
 }
