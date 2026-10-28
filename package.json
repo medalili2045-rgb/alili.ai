@@ -1,7 +1,7 @@
 {
   "name": "alili-ai",
   "version": "5.0.0",
-  "description": "Alili AI Ultimate - Super App",
+  "description": "Alili AI Ultimate",
   "scripts": {
     "sync": "cap sync android",
     "open": "cap open android",
